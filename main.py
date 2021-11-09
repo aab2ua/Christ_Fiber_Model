@@ -343,8 +343,10 @@ if __name__ == "__main__":
         edited_heatmap = edited_heatmap(heatmap_image, small_contour)
         edited_heatmap.save("heatmap.tif")
         print("Success")
+    except FileNotFoundError:
+        print("Can't find the right file")
     except:
-        print("Something went wrong \(' ')/")
+        print("Something went wrong")
 
 
 
