@@ -152,13 +152,18 @@ def small_contour_point(x1, y1, x2, y2, ratio):
     return (small_contour_x, small_contour_y)
 
 def total_contours(contours):
-    length = len(contours)
     total_contours = []
 
-    for x in range(0, length - 1):
+    for x in range(0, len(contours)):
         section = contours[x]
-        for y in range(0, len(section) - 1):
-            point = section[y]
+        sec_len = len(section)
+
+        for z in range(0, sec_len):
+            section2 = section[z]
+            while section2.ndim != 1:
+                section2 = section2[0]
+
+            point = (section2[0], section2[1])
             total_contours.append(point)
 
     return total_contours
@@ -168,7 +173,7 @@ def smaller_contour(contours, ratio, xcoord, ycoord, fiber_mask):
     contours = total_contours(contours)
 
     for x in range(0, len(contours) - 1):
-        point = contours[x][0]
+        point = contours[x]
         contour_x = point[0]
         contour_y = point[1]
         new_point = small_contour_point(int(xcoord), int(ycoord), contour_x, contour_y,
