@@ -341,7 +341,7 @@ if __name__ == "__main__":
         area_summary.to_csv("Area_Summary.csv")
         area_raw.to_csv("Area_Raw.csv")
         print('MinFD Data Analysis')
-        minFD_hist, minFD_summary, minFD_raw = area_stats(core_index, outer_index, tables)
+        minFD_hist, minFD_summary, minFD_raw = minFD_stats(core_index, outer_index, tables)
         minFD_hist.savefig("Outer_vs_Core_minFD.png")
         minFD_summary.to_csv("minFD_Summary.csv")
         minFD_raw.to_csv("minFD_Raw.csv")
