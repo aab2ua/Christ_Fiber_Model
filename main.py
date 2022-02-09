@@ -301,7 +301,6 @@ def edited_heatmap(heatmap, small_contour):
     for x in range(0, len(small_contour) - 1):
         cv2.circle(heatmap, (int(small_contour[x][0]), int(small_contour[x][1])), 50, [255, 255, 255],
                    -1)  # Color the outline white so that it's creating "two sections"
-
     return heatmap
 
 
@@ -314,15 +313,17 @@ if __name__ == "__main__":
         print('Reading input file...')
         fiber_masks = ski.imread(args.files[0])
         ratio = int(args.ratio[0])
-        os.chdir("/Users/aartheebaskaran/Documents")
-        os.makedirs("NR: " + fiber_masks + ": " + str(ratio) + "% analysis")
-        os.chdir("NR: " + fiber_masks + ": " + str(ratio) + "% analysis")
+
         print('Creating heatmap...')
         tables = labeled_fibers(fiber_masks)
         heatmap_image = heatmap(fiber_masks, tables)
         print('Calculating centroid with kmeans')
         centroid = kmeans1(tables, heatmap_image)
         print('Contouring mask')
+
+        #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
+        #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
+
         con_mask, contours = contouring(fiber_masks)
         contoured_mask = Image.fromarray(con_mask)
         contoured_mask.save("con_mask.jpeg")
@@ -346,6 +347,7 @@ if __name__ == "__main__":
         minFD_raw.to_csv("minFD_Raw.csv")
         print('Saving edited heatmap image')
         edited_heatmap = edited_heatmap(heatmap_image, small_contour)
+        print("a")
         edited_heatmap.save("heatmap.tif")
         print("Success")
     except FileNotFoundError:
