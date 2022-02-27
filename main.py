@@ -17,6 +17,9 @@ from sklearn.cluster import KMeans
 import cv2  # this is the main openCV class, the python binding file should be in /pythonXX/Lib/site-packages
 from skimage import data, filters, color, morphology
 from skimage.segmentation import flood, flood_fill
+import math
+from __future__ import generators
+from math import sqrt
 
 # construct argument parse
 def init_argparse():
@@ -28,6 +31,58 @@ def init_argparse():
     return parse
 
 # defined functions in script
+
+def min_max_feret(Points):
+    '''Given a list of 2d points, returns the minimum and maximum feret diameters.'''
+    squared_distance_per_pair = [((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2, (p, q))
+                                 for p, q in rotatingCalipers(Points)]
+    min_feret_sq, min_feret_pair = min(squared_distance_per_pair)
+    max_feret_sq, max_feret_pair = max(squared_distance_per_pair)
+    return sqrt(min_feret_sq), sqrt(max_feret_sq)
+
+# { functions for min_max_feret
+def rotatingCalipers(Points):
+    '''Given a list of 2d points, finds all ways of sandwiching the points
+between two parallel lines that touch one point each, and yields the sequence
+of pairs of points touched by each pair of lines.'''
+    U, L = hulls(Points)
+    i = 0
+    j = len(L) - 1
+    while i < len(U) - 1 or j > 0:
+        yield U[i], L[j]
+
+        # if all the way through one side of hull, advance the other side
+        if i == len(U) - 1:
+            j -= 1
+        elif j == 0:
+            i += 1
+
+        # still points left on both lists, compare slopes of next hull edges
+        # being careful to avoid divide-by-zero in slope calculation
+        elif (U[i + 1][1] - U[i][1]) * (L[j][0] - L[j - 1][0]) > \
+                (L[j][1] - L[j - 1][1]) * (U[i + 1][0] - U[i][0]):
+            i += 1
+        else:
+            j -= 1
+
+
+def orientation(p, q, r):
+    '''Return positive if p-q-r are clockwise, neg if ccw, zero if colinear.'''
+    return (q[1] - p[1]) * (r[0] - p[0]) - (q[0] - p[0]) * (r[1] - p[1])
+
+
+def hulls(Points):
+    '''Graham scan to find upper and lower convex hulls of a set of 2d points.'''
+    U = []
+    L = []
+    Points.sort()
+    for p in Points:
+        while len(U) > 1 and orientation(U[-2], U[-1], p) <= 0: U.pop()
+        while len(L) > 1 and orientation(L[-2], L[-1], p) >= 0: L.pop()
+        U.append(p)
+        L.append(p)
+    return U, L
+# }
 
 def get_minFD(points):
     hull_ordered = [points[index] for index in ConvexHull(points).vertices]
@@ -42,7 +97,7 @@ def get_minFD(points):
 
     return min_rectangle['length_orthogonal']
 
-
+# { functions for get_minFD
 def bounding_area(index, hull):
     unit_vector_p = unit_vector(hull[index], hull[index + 1])
     unit_vector_o = orthogonal_vector(unit_vector_p)
@@ -69,6 +124,7 @@ def unit_vector(pt0, pt1):
 def orthogonal_vector(vector):
     # from vector returns a orthogonal/perpendicular vector of equal length
     return -1 * vector[1], vector[0]
+# }
 
 def labeled_fibers(fiber_masks):
     # Create labeled fibers from mask
@@ -112,6 +168,45 @@ def heatmap(fiber_masks, tables):
     img_out = Image.fromarray((img_out * 255).astype(np.uint8))
     img_out = img_out.convert('RGB')
     return img_out
+
+def cent_mode(tables): #either run this or kmeans function to find centroid
+    small_fibers = tables[tables['minFD'] < 25]
+
+    # 'centroid-1' is x coordinates and 'centroid-0' is y coordinates
+    # finding x centroid coord
+    small_centroids_x = small_fibers['centroid-1'].mode()
+    tot_cent_x = tables['centroid-1'].mean()
+
+        # going through the x coord modes and picking the smallest one
+    small_cent_x = small_centroids_x[0].item()
+    old_dist = math.dist([small_cent_x], [tot_cent_x])
+
+    for i in range(0, len(small_fibers['centroid-1'].mode())):
+        if i != 0:
+            old_dist = dist
+        trial_cent_x = small_centroids_x[i].item()
+        dist = math.dist([trial_cent_x], [tot_cent_x])
+        if dist < old_dist:
+            small_cent_x = trial_cent_x
+    # find y centroid coord
+    small_centroids_y = small_fibers['centroid-0'].mode()
+    tot_cent_y = tables['centroid-0'].mean()
+
+        # going through the x coord modes and picking the smallest one
+    small_cent_y = small_centroids_y[0].item()
+    old_dist = math.dist([small_cent_y], [tot_cent_y])
+
+    for i in range(0, len(small_fibers['centroid-0'].mode())):
+        if i != 0:
+            old_dist = dist
+        trial_cent_y = small_centroids_y[i].item()
+        dist = math.dist([trial_cent_y], [tot_cent_y])
+        if dist < old_dist:
+            small_cent_y = trial_cent_y
+
+    return small_cent_x, small_cent_y, small_fibers
+
+
 
 def kmeans1(tables, heatmap):
     small_fibers = tables[tables['minFD'] < 25]
@@ -317,10 +412,10 @@ if __name__ == "__main__":
         print('Creating heatmap...')
         tables = labeled_fibers(fiber_masks)
         heatmap_image = heatmap(fiber_masks, tables)
-        print('Calculating centroid with kmeans')
-        centroid = kmeans1(tables, heatmap_image)
+        print('Calculating centroid with mode')
+        #centroid = kmeans1(tables, heatmap_image)
+        centroid = cent_mode(tables)
         print('Contouring mask')
-
         #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
         #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
 
