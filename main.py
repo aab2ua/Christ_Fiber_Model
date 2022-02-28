@@ -417,6 +417,7 @@ if __name__ == "__main__":
         centroid = cent_mode(tables)
         print('Calculating minimum and maximum Feret diameters')
         #min_FD, max_FD = min_max_feret()
+        #figure out what the points are to input into function
         print('Contouring mask')
         #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
         #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
