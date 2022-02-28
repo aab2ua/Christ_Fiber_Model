@@ -415,10 +415,11 @@ if __name__ == "__main__":
         print('Calculating centroid with mode')
         #centroid = kmeans1(tables, heatmap_image)
         centroid = cent_mode(tables)
+        print('Calculating minimum and maximum Feret diameters')
+        #min_FD, max_FD = min_max_feret()
         print('Contouring mask')
         #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
         #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
-
         con_mask, contours = contouring(fiber_masks)
         contoured_mask = Image.fromarray(con_mask)
         contoured_mask.save("con_mask.jpeg")
