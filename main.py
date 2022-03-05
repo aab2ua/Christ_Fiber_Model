@@ -1,5 +1,7 @@
 # Using argparser for the fiber model python notebook
 # include necessary packages
+from __future__ import generators
+
 import argparse
 from scipy.spatial import ConvexHull
 from scipy import sparse
@@ -18,7 +20,6 @@ import cv2  # this is the main openCV class, the python binding file should be i
 from skimage import data, filters, color, morphology
 from skimage.segmentation import flood, flood_fill
 import math
-from __future__ import generators
 from math import sqrt
 
 # construct argument parse
@@ -31,7 +32,6 @@ def init_argparse():
     return parse
 
 # defined functions in script
-
 def min_max_feret(Points):
     '''Given a list of 2d points, returns the minimum and maximum feret diameters.'''
     squared_distance_per_pair = [((p[0] - q[0]) ** 2 + (p[1] - q[1]) ** 2, (p, q))
@@ -219,7 +219,7 @@ def kmeans1(tables, heatmap):
     xcoord = kmeans.cluster_centers_[:, 0][0]
     ycoord = kmeans.cluster_centers_[:, 1][0]
     centroid = [xcoord, ycoord]
-    return centroid
+    return centroid, small_fibers
 
 def contouring(mask):
     # Grayscaling image
@@ -393,10 +393,40 @@ def minFD_stats(core_index, outer_index, tables):
     return minFD_hist, minFD_summary, minFD_raw
 
 def edited_heatmap(heatmap, small_contour):
+    edit_heatmap = np.array(heatmap)
+
     for x in range(0, len(small_contour) - 1):
-        cv2.circle(heatmap, (int(small_contour[x][0]), int(small_contour[x][1])), 50, [255, 255, 255],
+        cv2.circle(edit_heatmap, (int(small_contour[x][0]), int(small_contour[x][1])), 50, [255, 255, 255],
                    -1)  # Color the outline white so that it's creating "two sections"
+    return edit_heatmap
+
+def plotting_modes(heatmap, x):
+    heatmap = np.array(heatmap)
+    cv2.circle(heatmap, (x, 0), 50, [255, 0, 0], -1)
     return heatmap
+
+def finding_mode_x(small_fibers, heatmap):
+    mode_x = small_fibers['centroid-1'].mode()
+    if len(mode_x) == 1:
+        trial_mode = int(mode_x)
+    print(trial_mode)
+
+    mode = plotting_modes(heatmap, mode_x)
+    mode = Image.fromarray(mode)
+    mode.save("first mode.tif")
+
+    keep_mode = input("Is this mode in the right cluster? Y/N: ")
+    delete_mode = False
+
+    if keep_mode == "N":
+        delete_mode = True
+        small_fibers.drop(small_fibers[small_fibers['centroid-1'] == mode_x].index, inplace = True)
+        mode_x = small_fibers['centroid-1'].mode()
+        print(mode_x)
+
+    return mode_x
+
+
 
 
 #________________________________________________________________________-
@@ -408,44 +438,45 @@ if __name__ == "__main__":
         print('Reading input file...')
         fiber_masks = ski.imread(args.files[0])
         ratio = int(args.ratio[0])
-
         print('Creating heatmap...')
         tables = labeled_fibers(fiber_masks)
         heatmap_image = heatmap(fiber_masks, tables)
         print('Calculating centroid with mode')
-        #centroid = kmeans1(tables, heatmap_image)
-        centroid = cent_mode(tables)
-        print('Calculating minimum and maximum Feret diameters')
-        #min_FD, max_FD = min_max_feret()
-        #figure out what the points are to input into function
-        print('Contouring mask')
-        #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
-        #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
-        con_mask, contours = contouring(fiber_masks)
-        contoured_mask = Image.fromarray(con_mask)
-        contoured_mask.save("con_mask.jpeg")
-        print('Creating smaller contour')
-        def_mask, small_contour = smaller_contour(contours, ratio, centroid[0], centroid[1], fiber_masks)
-        defined_mask = Image.fromarray(def_mask)
-        defined_mask.save("def_mask.jpeg")
-        print('Binary Filtering')
-        filled_mask, filtered_mask = binary_filtering(def_mask, fiber_masks, small_contour)
-        print('Fiber Count')
-        fiber_count, core_index, outer_index = fiber_count(filtered_mask, tables)
-        print('Area Data Analysis')
-        area_hist, area_summary, area_raw = area_stats(core_index, outer_index, tables)
-        area_hist.savefig("Outer_vs_Core_Area.png")
-        area_summary.to_csv("Area_Summary.csv")
-        area_raw.to_csv("Area_Raw.csv")
-        print('MinFD Data Analysis')
-        minFD_hist, minFD_summary, minFD_raw = minFD_stats(core_index, outer_index, tables)
-        minFD_hist.savefig("Outer_vs_Core_minFD.png")
-        minFD_summary.to_csv("minFD_Summary.csv")
-        minFD_raw.to_csv("minFD_Raw.csv")
-        print('Saving edited heatmap image')
-        edited_heatmap = edited_heatmap(heatmap_image, small_contour)
-        print("a")
-        edited_heatmap.save("heatmap.tif")
+        centroid, small_fibers = kmeans1(tables, heatmap_image)
+        #centroid = cent_mode(tables)
+        # print('Calculating minimum and maximum Feret diameters')
+        # #min_FD, max_FD = min_max_feret()
+        # #figure out what the points are to input into function
+        # print('Contouring mask')
+        # #os.makedirs(fiber_masks + ": " + str(ratio) + "% analysis")
+        # #os.chdir(fiber_masks + ": " + str(ratio) + "% analysis")
+        # con_mask, contours = contouring(fiber_masks)
+        # contoured_mask = Image.fromarray(con_mask)
+        # contoured_mask.save("con_mask.jpeg")
+        # print('Creating smaller contour')
+        # def_mask, small_contour = smaller_contour(contours, ratio, centroid[0], centroid[1], fiber_masks)
+        # defined_mask = Image.fromarray(def_mask)
+        # defined_mask.save("def_mask.jpeg")
+        # print('Binary Filtering')
+        # filled_mask, filtered_mask = binary_filtering(def_mask, fiber_masks, small_contour)
+        # print('Fiber Count')
+        # fiber_count, core_index, outer_index = fiber_count(filtered_mask, tables)
+        # print('Area Data Analysis')
+        # area_hist, area_summary, area_raw = area_stats(core_index, outer_index, tables)
+        # area_hist.savefig("Outer_vs_Core_Area.png")
+        # area_summary.to_csv("Area_Summary.csv")
+        # area_raw.to_csv("Area_Raw.csv")
+        # print('MinFD Data Analysis')
+        # minFD_hist, minFD_summary, minFD_raw = minFD_stats(core_index, outer_index, tables)
+        # minFD_hist.savefig("Outer_vs_Core_minFD.png")
+        # minFD_summary.to_csv("minFD_Summary.csv")
+        # minFD_raw.to_csv("minFD_Raw.csv")
+        #print('Saving edited heatmap image')
+        #new_heatmap = edited_heatmap(heatmap_image, small_contour)
+        #heatmap = Image.fromarray(new_heatmap)
+        #heatmap.save("heatmap.tif")
+        print("trying out modes")
+        mode_x = finding_mode_x(small_fibers, heatmap_image)
         print("Success")
     except FileNotFoundError:
         print("Can't find the right file")
