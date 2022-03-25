@@ -167,46 +167,9 @@ def heatmap(fiber_masks, tables):
 
     img_out = Image.fromarray((img_out * 255).astype(np.uint8))
     img_out = img_out.convert('RGB')
+    img_out.save("heatmap.png")
+    print(type(img_out))
     return img_out
-
-def cent_mode(tables): #either run this or kmeans function to find centroid
-    small_fibers = tables[tables['minFD'] < 25]
-
-    # 'centroid-1' is x coordinates and 'centroid-0' is y coordinates
-    # finding x centroid coord
-    small_centroids_x = small_fibers['centroid-1'].mode()
-    tot_cent_x = tables['centroid-1'].mean()
-
-        # going through the x coord modes and picking the smallest one
-    small_cent_x = small_centroids_x[0].item()
-    old_dist = math.dist([small_cent_x], [tot_cent_x])
-
-    for i in range(0, len(small_fibers['centroid-1'].mode())):
-        if i != 0:
-            old_dist = dist
-        trial_cent_x = small_centroids_x[i].item()
-        dist = math.dist([trial_cent_x], [tot_cent_x])
-        if dist < old_dist:
-            small_cent_x = trial_cent_x
-    # find y centroid coord
-    small_centroids_y = small_fibers['centroid-0'].mode()
-    tot_cent_y = tables['centroid-0'].mean()
-
-        # going through the x coord modes and picking the smallest one
-    small_cent_y = small_centroids_y[0].item()
-    old_dist = math.dist([small_cent_y], [tot_cent_y])
-
-    for i in range(0, len(small_fibers['centroid-0'].mode())):
-        if i != 0:
-            old_dist = dist
-        trial_cent_y = small_centroids_y[i].item()
-        dist = math.dist([trial_cent_y], [tot_cent_y])
-        if dist < old_dist:
-            small_cent_y = trial_cent_y
-
-    return small_cent_x, small_cent_y, small_fibers
-
-
 
 def kmeans1(tables, heatmap):
     small_fibers = tables[tables['minFD'] < 25]
@@ -400,31 +363,110 @@ def edited_heatmap(heatmap, small_contour):
                    -1)  # Color the outline white so that it's creating "two sections"
     return edit_heatmap
 
-def plotting_modes(heatmap, x):
-    heatmap = np.array(heatmap)
-    cv2.circle(heatmap, (x, 0), 50, [255, 0, 0], -1)
-    return heatmap
+def cent_mode(tables): #either run this or kmeans function to find centroid
+    small_fibers = tables[tables['minFD'] < 25]
 
-def finding_mode_x(small_fibers, heatmap):
-    mode_x = small_fibers['centroid-1'].mode()
-    if len(mode_x) == 1:
-        trial_mode = int(mode_x)
-    print(trial_mode)
+    # 'centroid-1' is x coordinates and 'centroid-0' is y coordinates
+    # finding x centroid coord
+    small_centroids_x = small_fibers['centroid-1'].mode()
+    tot_cent_x = tables['centroid-1'].mean()
 
-    mode = plotting_modes(heatmap, mode_x)
-    mode = Image.fromarray(mode)
-    mode.save("first mode.tif")
+        # going through the x coord modes and picking the smallest one
+    small_cent_x = small_centroids_x[0].item()
+    old_dist = math.dist([small_cent_x], [tot_cent_x])
 
-    keep_mode = input("Is this mode in the right cluster? Y/N: ")
+    for i in range(0, len(small_fibers['centroid-1'].mode())):
+        if i != 0:
+            old_dist = dist
+        trial_cent_x = small_centroids_x[i].item()
+        dist = math.dist([trial_cent_x], [tot_cent_x])
+        if dist < old_dist:
+            small_cent_x = trial_cent_x
+    # find y centroid coord
+    small_centroids_y = small_fibers['centroid-0'].mode()
+    tot_cent_y = tables['centroid-0'].mean()
+
+        # going through the y coord modes and picking the smallest one
+    small_cent_y = small_centroids_y[0].item()
+    old_dist = math.dist([small_cent_y], [tot_cent_y])
+
+    for i in range(0, len(small_fibers['centroid-0'].mode())):
+        if i != 0:
+            old_dist = dist
+        trial_cent_y = small_centroids_y[i].item()
+        dist = math.dist([trial_cent_y], [tot_cent_y])
+        if dist < old_dist:
+            small_cent_y = trial_cent_y
+
+    return small_cent_x, small_cent_y, small_fibers
+
+def plotting_modes(heatmap, xlist, ylist):
+    markers = ["o", "v", "^", "<", ">", "1", "4", "s", "p", "P", "*", "+", "x", "X", "D", "d", "|", "_", ]
+    fig, ax = plt.subplots()
+    ax.imshow(heatmap)
+    count_x = len(xlist)
+    count_y = len(ylist)
+
+    count = -1
+    for x in range(0, count_x):
+        count += 1
+        for y in range(0, count_y):
+            ax.scatter(xlist[x], ylist[y], marker = '$' + str(count) + '$', s = 50, color = 'r')
+            count += 1
+
+    # print a table saying what coord is what number
+    # dealing with lists over 11 numbers
+
+    plt.savefig("heatmap_edited.png")
+    os.system("open heatmap_edited.png")
+
+#def choosing_mode():
+
+def centroid(tables, heatmap):
+    small_fibers = tables[tables['minFD'] < 25]
+    mode_fibers = small_fibers
+
+    # initial x mode(s) - 1 means x
+    mode_x = mode_fibers['centroid-1'].mode()
+    mode_xlist = mode_x.tolist()
+    print(mode_xlist)
+
+    # initial y mode(s) - 0 means y
+    mode_y = mode_fibers['centroid-0'].mode()
+    mode_ylist = mode_y.tolist()
+    print(mode_ylist)
+
+    plotting_modes(heatmap, mode_xlist, mode_ylist)
+
+    # focusing on getting right x mode
+    keep_mode = input("Were any of the modes in the right cluster in the x direction? Y/N: ")
     delete_mode = False
 
     if keep_mode == "N":
         delete_mode = True
-        small_fibers.drop(small_fibers[small_fibers['centroid-1'] == mode_x].index, inplace = True)
-        mode_x = small_fibers['centroid-1'].mode()
+        mode_x = int(mode_x)
+        mode_fibers.drop(mode_fibers[mode_fibers['centroid-1'] == mode_x].index, inplace = True)
+        mode_x = mode_fibers['centroid-1'].mode()
         print(mode_x)
+    elif keep_mode == "Y":
+        x_index = input("What is the index of the x coordinate of the mode? ")
+        return mode_x[x_index]
 
-    return mode_x
+    # while delete_mode == True:
+    #     mode_x = mode_fibers['centroid-1'].mode()
+    #     mode_x = mode_x.tolist()
+    #     print(mode_x)
+    #
+    #     plotting_modes(heatmap, mode_x, mode_y)
+    #     keep_mode = input("Were any of the modes in the right cluster in the x direction? Y/N: ")
+    #     if keep_mode == "Y":
+    #         break
+    #     mode_fibers.drop(mode_fibers[mode_fibers['centroid-1'] == mode_x].index, inplace = True)
+
+
+
+
+
 
 
 
@@ -442,8 +484,8 @@ if __name__ == "__main__":
         tables = labeled_fibers(fiber_masks)
         heatmap_image = heatmap(fiber_masks, tables)
         print('Calculating centroid with mode')
-        centroid, small_fibers = kmeans1(tables, heatmap_image)
-        #centroid = cent_mode(tables)
+        #centroid, small_fibers = kmeans1(tables, heatmap_image)
+        centroid_x = centroid(tables, heatmap_image)
         # print('Calculating minimum and maximum Feret diameters')
         # #min_FD, max_FD = min_max_feret()
         # #figure out what the points are to input into function
@@ -475,9 +517,9 @@ if __name__ == "__main__":
         #new_heatmap = edited_heatmap(heatmap_image, small_contour)
         #heatmap = Image.fromarray(new_heatmap)
         #heatmap.save("heatmap.tif")
-        print("trying out modes")
-        mode_x = finding_mode_x(small_fibers, heatmap_image)
-        print("Success")
+        # print("trying out modes")
+        # mode_x = finding_mode_x(small_fibers, heatmap_image)
+        # print("Success")
     except FileNotFoundError:
         print("Can't find the right file")
     except:
